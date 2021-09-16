@@ -12,6 +12,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.provider.Telephony;
 import android.telephony.SmsManager;
+import android.util.Log;
 import java.util.ArrayList;
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
@@ -99,10 +100,14 @@ public class Sms extends CordovaPlugin {
 						// See http://stackoverflow.com/questions/18974898/send-sms-through-intent-to-multiple-phone-numbers/18975676#18975676
 						separator = ",";
 					}
+
+					// Log.d("Sms.java", args.toString());
 					String phoneNumber = args.getJSONArray(0).join(separator).replace("\"", "");
 					String message = args.getString(1);
 					String method = args.getString(2);
 					boolean replaceLineBreaks = Boolean.parseBoolean(args.getString(3));
+					int sim = Integer.parseInt(args.getString(4));
+					// Log.d("Sms.java", String.valueOf(sim));
 
 					// replacing \n by new line if the parameter replaceLineBreaks is set to true
 					if (replaceLineBreaks) {
@@ -117,7 +122,7 @@ public class Sms extends CordovaPlugin {
 						// always passes success back to the app
 						callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.OK));
 					} else {
-						send(callbackContext, phoneNumber, message);
+						send(callbackContext, phoneNumber, message, sim);
 					}
 					return;
 				} catch (JSONException ex) {
@@ -156,8 +161,8 @@ public class Sms extends CordovaPlugin {
 		this.cordova.getActivity().startActivity(sendIntent);
 	}
 
-	private void send(final CallbackContext callbackContext, String phoneNumber, String message) {
-		SmsManager manager = SmsManager.getDefault();
+	private void send(final CallbackContext callbackContext, String phoneNumber, String message, int sim) {
+		SmsManager manager = SmsManager.getSmsManagerForSubscriptionId(sim);
 		final ArrayList<String> parts = manager.divideMessage(message);
 
 		// by creating this broadcast receiver we can check whether or not the SMS was sent
@@ -210,4 +215,62 @@ public class Sms extends CordovaPlugin {
 			manager.sendTextMessage(phoneNumber, null, message, sentIntent, null);
 		}
 	}
+
+
+	// private void send(final CallbackContext callbackContext, String phoneNumber, String message) {
+	// 	SmsManager manager = SmsManager.getDefault();
+	// 	final ArrayList<String> parts = manager.divideMessage(message);
+
+	// 	// by creating this broadcast receiver we can check whether or not the SMS was sent
+	// 	final BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+
+	// 		boolean anyError = false; //use to detect if one of the parts failed
+	// 		int partsCount = parts.size(); //number of parts to send
+
+	// 		@Override
+	// 		public void onReceive(Context context, Intent intent) {
+	// 			switch (getResultCode()) {
+	// 			case SmsManager.STATUS_ON_ICC_SENT:
+	// 			case Activity.RESULT_OK:
+	// 				break;
+	// 			case SmsManager.RESULT_ERROR_GENERIC_FAILURE:
+	// 			case SmsManager.RESULT_ERROR_NO_SERVICE:
+	// 			case SmsManager.RESULT_ERROR_NULL_PDU:
+	// 			case SmsManager.RESULT_ERROR_RADIO_OFF:
+	// 				anyError = true;
+	// 				break;
+	// 			}
+	// 			// trigger the callback only when all the parts have been sent
+	// 			partsCount--;
+	// 			if (partsCount == 0) {
+	// 				if (anyError) {
+	// 					callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR));
+	// 				} else {
+	// 					callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.OK));
+	// 				}
+	// 				cordova.getActivity().unregisterReceiver(this);
+	// 			}
+	// 		}
+	// 	};
+
+	// 	// randomize the intent filter action to avoid using the same receiver
+	// 	String intentFilterAction = INTENT_FILTER_SMS_SENT + java.util.UUID.randomUUID().toString();
+	// 	this.cordova.getActivity().registerReceiver(broadcastReceiver, new IntentFilter(intentFilterAction));
+
+	// 	PendingIntent sentIntent = PendingIntent.getBroadcast(this.cordova.getActivity(), 0, new Intent(intentFilterAction), 0);
+
+	// 	// depending on the number of parts we send a text message or multi parts
+	// 	if (parts.size() > 1) {
+	// 		ArrayList<PendingIntent> sentIntents = new ArrayList<PendingIntent>();
+	// 		for (int i = 0; i < parts.size(); i++) {
+	// 			sentIntents.add(sentIntent);
+	// 		}
+	// 		manager.sendMultipartTextMessage(phoneNumber, null, parts, sentIntents, null);
+	// 	}
+	// 	else {
+	// 		manager.sendTextMessage(phoneNumber, null, message, sentIntent, null);
+	// 	}
+	// }
+
+
 }
